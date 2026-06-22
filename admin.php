@@ -52,13 +52,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['acao_textos'])) {
   ];
 
   $erro_detectado = false;
-  foreach ($campos_atualizar as $chave => $valor) {
-    // Como a API do Supabase faz o update por filtro na URL usando RPC ou filtros restritos de PATCH, 
-    // a forma universal e sem falhas de atualizar chaves em massa via REST é enviando uma requisição por chave.
-    // Usamos trabalhos de Query param dinâmico: configuracoes?chave=eq.NOMEDACHAVE
-    $atualizar = conectarSupabase("configuracoes?chave=eq." . $chave, "POST", ['valor' => $valor]); // Nota: o Supabase interpreta POST em rotas filtradas sob RLS customizado ou via PATCH. Para garantir compatibilidade total via cURL REST padrão, simulamos via POST/PATCH na rota.
 
-    // Estratégia de segurança REST nativa (Ajuste para PATCH do Supabase):
+  // Fazemos o update individual de cada chave via PATCH
+  foreach ($campos_atualizar as $chave => $valor) {
+    // O Supabase exige o método PATCH para atualizações (Updates)
+    $resposta = conectarSupabase("configuracoes?chave=eq." . $chave, "PATCH", ['valor' => $valor]);
+    
+    // Se der algum erro (código fora da faixa 200-299)
+    if ($resposta['codigo'] < 200 || $resposta['codigo'] >= 300) {
+      $erro_detectado = true;
+    }
+  }
+
+  if (!$erro_detectado) {
+    $mensagem_textos = "<div class='alerta alerta-sucesso'>✔ Informações da Agência atualizadas!</div>";
+  } else {
+    $mensagem_textos = "<div class='alerta alerta-erro'>❌ Ocorreu um erro ao atualizar alguns dados no banco.</div>";
+  }
+}
+
+// Estratégia de segurança REST nativa (Ajuste para PATCH do Supabase):
     // Vamos usar o método nativo PATCH mudando o cabeçalho internamente se necessário, mas para simplificar no nosso cURL genérico:
     // Se a sua tabela aceita inserção em massa ou atualização com UPSERT, enviamos um array limpo.
   }
